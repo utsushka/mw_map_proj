@@ -66,20 +66,10 @@ export default function App(){
   const matchedSet=useMemo(()=>new Set(searched.map(l=>l.id)),[searched]);
   const catCounts=useMemo(()=>{ const c={}; CAT_KEYS.forEach(k=>c[k]=0);
     all.forEach(l=>{ if(baseFilter(l,'cat')&&matches(l))c[l.type]++; }); return c; },[all,baseFilter,matches]);
-  const regCounts=useMemo(()=>{ const c={}; REG_KEYS.forEach(k=>c[k]=0);
-    all.forEach(l=>{ if(baseFilter(l,'reg')&&matches(l))c[l.region]++; }); return c; },[all,baseFilter,matches]);
-  const sorted=useMemo(()=>{
-    const arr=[...searched];
-    if(prefs.sort==='name')arr.sort((a,b)=>a.ru.localeCompare(b.ru,'ru'));
-    else if(prefs.sort==='type')arr.sort((a,b)=>CAT_KEYS.indexOf(a.type)-CAT_KEYS.indexOf(b.type)||a.ru.localeCompare(b.ru,'ru'));
-    else arr.sort((a,b)=>REG_KEYS.indexOf(a.region)-REG_KEYS.indexOf(b.region)||a.ru.localeCompare(b.ru,'ru'));
-    return arr;
-  },[searched,prefs.sort]);
   const selected=selectedId?byId.get(selectedId):null;
 
   const selectLoc=useCallback((id)=>{ setSelectedId(id); setDraft(null); setAddMode(false); audio.play('select'); },[audio]);
   const zoomTo=useCallback((loc)=>{ mapRef.current?.zoomTo(loc); },[]);
-  const pickAndZoom=useCallback((id)=>{ selectLoc(id); const l=byId.get(id); if(l)zoomTo(l); setSbOpen(false); },[selectLoc,byId,zoomTo]);
   const toggleMeta=(id,k)=>setMeta(m=>({...m,[id]:{...(m[id]||{}),[k]:!(m[id]||{})[k]}}));
   const setNote=(id,v)=>setMeta(m=>({...m,[id]:{...(m[id]||{}),note:v}}));
   const resetFilters=()=>{ setPrefs(o=>({...o,catsOff:[],region:'all',source:'all',favOnly:false,hideVisited:false})); setQ('');
@@ -168,8 +158,6 @@ export default function App(){
     return ()=>window.removeEventListener('keydown',h);
   },[about,draft,addMode,selectedId,sbOpen,searched]);
 
-  const maxReg=Math.max(1,...Object.values(regCounts));
-
   return (
     <div className="app">
       <header className="hdr">
@@ -219,9 +207,6 @@ export default function App(){
               <label className="fld"><span>Источник</span>
                 <select value={prefs.source} onChange={e=>setPref('source',e.target.value)}>
                   <option value="all">Все</option>{Object.keys(SOURCES).map(k=><option key={k} value={k}>{SOURCES[k]}</option>)}</select></label>
-              <label className="fld"><span>Сортировка</span>
-                <select value={prefs.sort} onChange={e=>setPref('sort',e.target.value)}>
-                  <option value="name">Имя</option><option value="type">Тип</option><option value="region">Регион</option></select></label>
             </div>
             <div className="chips">
               <button className={'chip-t'+(prefs.favOnly?' on':'')} onClick={()=>{setPref('favOnly',!prefs.favOnly);audio.play('toggle');}}>★ Избранное</button>
@@ -265,19 +250,6 @@ export default function App(){
           </div>
 
           <div className="sb-sec">
-            <div className="sb-h">По регионам</div>
-            {REG_KEYS.map(k=>(
-              <div key={k} className={'rc-row'+(prefs.region===k?' on':'')} role="button" tabIndex={0}
-                   title={'Фильтр: '+REGIONS[k].name}
-                   onClick={()=>{ setPref('region',prefs.region===k?'all':k); audio.play('toggle'); }}
-                   onKeyDown={e=>{ if(e.key==='Enter')setPref('region',prefs.region===k?'all':k); }}>
-                <span className="rc-name">{REGIONS[k].name}</span>
-                <span className="rc-bar"><span className="rc-fill" style={{width:(regCounts[k]/maxReg*100)+'%',background:REGIONS[k].color,color:REGIONS[k].color,display:'block'}}/></span>
-                <span className="rc-n">{regCounts[k]}</span>
-              </div>))}
-          </div>
-
-          <div className="sb-sec">
             <div className="sb-h">Виды карты
               <span className="mini"><button className="mini-btn" onClick={saveView}>＋ сохранить вид</button></span></div>
             {views.length===0
@@ -285,33 +257,6 @@ export default function App(){
               : <div className="views">{views.map(v=>(
                   <span key={v.id} className="view-chip"><b onClick={()=>applyViewChip(v)}>{v.name}</b>
                     <button className="vx" aria-label="Удалить вид" onClick={()=>setViews(vs=>vs.filter(x=>x.id!==v.id))}>✕</button></span>))}</div>}
-          </div>
-
-          <div className="sb-sec" style={{borderBottom:'none',paddingBottom:4}}>
-            <div className="sb-h">Локации · {sorted.length}{ql&&<span style={{color:'var(--tx3)',letterSpacing:0,textTransform:'none'}}>по «{q}»</span>}</div>
-          </div>
-          <div className="loc-list">
-            {sorted.map(l=>{
-              const m=meta[l.id]||{}, c=CATS[l.type];
-              return <div key={l.id} role="button" tabIndex={0}
-                className={'loc-row'+(l.id===selectedId?' sel':'')}
-                onClick={()=>pickAndZoom(l.id)}
-                onKeyDown={e=>{if(e.key==='Enter')pickAndZoom(l.id);}}
-                onMouseEnter={()=>setHoverId(l.id)} onMouseLeave={()=>setHoverId(null)}>
-                <span className="lr-ic" style={{background:c.color+'1c',border:`1px solid ${c.color}40`}}><CatIcon type={l.type}/></span>
-                <span className="lr-tx"><b>{l.ru}</b><span>{REGIONS[l.region].name} · {l.en}</span></span>
-                {l.src==='TR'&&<span className="badge b-tr">TR</span>}
-                {l.src==='BM'&&<span className="badge b-bm">BM</span>}
-                {l.src==='MY'&&<span className="badge b-my">MY</span>}
-                <span className="lr-acts">
-                  <button className={'lr-a'+(m.visited?' v-on':'')} title="Посещено" aria-label="Посещено"
-                    onClick={(e)=>{e.stopPropagation();toggleMeta(l.id,'visited');audio.play('toggle');}}>✓</button>
-                  <button className={'lr-a'+(m.fav?' f-on':'')} title="Избранное" aria-label="Избранное"
-                    onClick={(e)=>{e.stopPropagation();toggleMeta(l.id,'fav');audio.play('toggle');}}>{m.fav?'★':'☆'}</button>
-                </span>
-              </div>;
-            })}
-            {sorted.length===0&&<p style={{padding:'8px',fontSize:12,color:'var(--tx3)'}}>Пусто. Смягчите фильтры или сбросьте поиск.</p>}
           </div>
 
           <div className="sb-foot">

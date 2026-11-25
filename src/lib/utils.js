@@ -1,4 +1,4 @@
-import { REGIONS } from '../data/catalog.js';
+import { CAT_KEYS, REGIONS } from '../data/catalog.js';
 
 export const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 export const easeIO = t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
@@ -9,8 +9,8 @@ export const LS_KEY = 'vv-atlas-v1';
 export function loadSaved(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||{}; }catch{ return {}; } }
 
 export const DEF_PREFS = {
-  theme:'ash', labels:true, regions:true, grid:false, glow:true, ash:45, mscale:1, sound:true,
-  catsOff:[], region:'all', source:'all', sort:'name', favOnly:false, hideVisited:false,
+  theme:'ash', labels:true, regions:true, grid:false, glow:true, ash:45, mscale:0.8, sound:true,
+  catsOff:CAT_KEYS.filter(k => k !== 'home'), region:'all', source:'all', sort:'name', favOnly:false, hideVisited:false,
 };
 export const REDUCED = typeof window!=='undefined' && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
